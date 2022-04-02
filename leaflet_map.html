@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Gerrymandering Analysis</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" 
+            integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+            crossorigin=""/>
+        <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+            integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
+            crossorigin=""></script>
+        <script src="L.Map.Sync.js"></script>
+        <script src="roeckSenNames2.js"></script>
+        <script src="roeckSenLetters.js"></script>
+        <script src="voterNames.js"></script>
+        <script src="voterLetters.js"></script>
+        <script src="raceNames.js"></script>
+        <script src="raceLetters.js"></script>
+        <style>
+            html, body {
+                height: 100%;
+                margin: 0;
+            }
+            #map1, #map2 {
+                width: 100%;
+                height: 50%;
+            }
+        </style>
+        <style>
+            h1 {
+                font-size: xx-large;
+            }
+            .info {
+                padding: 6px 8px;
+                font: 14px/16px Arial, Helvetica, sans-serif;
+                background: white;
+                background: rgba(255,255,255,0.8);
+                box-shadow: 0 0 15px rgba(0,0,0,0.2);
+                border-radius: 5px;
+            }
+            .info h4 {
+                margin: 0 0 5px;
+                color: #777;
+            }
+            .legend {
+                text-align: left;
+                line-height: 18px;
+                color: #555;
+            }
+            .legend i {
+                width: 18px;
+                height: 18px;
+                float: left;
+                margin-right: 8px;
+                opacity: 0.7;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="map1"></div>
+        <div id="map2"></div>
+        <script type="text/javascript">
+
+            // map variables
+            var map1 = L.map('map1').setView([42.7850, -76.0882], 7);
+            var map2 = L.map('map2').setView([42.7580, -76.0882], 7);
+
+            // basemap tiles
+
+            var tiles1 = L.tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {
+            maxZoom: 18,
+            minZoom: 3,
+            attribution:'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, ' +
+                        'Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+            id: 'mapbox/light-v9',
+            tileSize: 512,
+            zoomOffset: -1,
+            accessToken: 'pk.eyJ1IjoibW93YXJkMTIiLCJhIjoiY2ttMHFkbzd0MDJlZTJxbXNyNGxzZGJzaSJ9.KyxNm2KzwhMm0YPhU4sARg'
+            }).addTo(map1);
+            
+            var tiles2 = L.tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {
+            maxZoom: 18,
+            minZoom: 3,
+            attribution:'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, ' +
+                        'Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+            id: 'mapbox/light-v9',
+            tileSize: 512,
+            zoomOffset: -1,
+            accessToken: 'pk.eyJ1IjoibW93YXJkMTIiLCJhIjoiY2ttMHFkbzd0MDJlZTJxbXNyNGxzZGJzaSJ9.KyxNm2KzwhMm0YPhU4sARg'
+            }).addTo(map2);
+
+            // sync map views
+
+            map1.sync(map2);
+            map2.sync(map1);
+
+            //Info Panes:
+
+            var info1 = L.control({position: 'topright'});
+
+            info1.onAdd = function (map1) {
+                this._div = L.DomUtil.create('div', 'info');
+                this.update();
+                return this._div;
+            };
+
+            info1.update = function (pct) {
+                this._div.innerHTML = '<h4>Roundness</h4>' + (pct ? 
+                    '<b>' + 'District ' + pct.id + '<b><br />' + pct.roundness + '%' : 'Hover over a district');
+            };
+            //info1.addTo(map1);
+
+            var info2 = L.control({position: 'topright'});
+
+            info2.onAdd = function (map1) {
+                this._div = L.DomUtil.create('div', 'info');
+                this.update();
+                return this._div;
+            };
+
+            info2.update = function (pct) {
+                this._div.innerHTML = '<h4>Voter Preferences</h4>' + (pct ? 
+                    '<b>' + 'District ' + pct.id + '<b><br />' + "# of neighbors: " + pct.count + '<b><br />' +
+                        'Dems in: ' + pct.dem + '%' + '<b><br />' + 
+                            'Dems out: ' + pct.avg_dem + '%' + '<b><br />' +
+                                'Reps in: ' + pct.rep + '%' + '<b><br />' +
+                                    'Reps out: ' + pct.avg_rep + '%': 'Hover over a district');
+            };
+            //info2.addTo(map2);
+
+            var info3 = L.control({position: 'topright'});
+
+            info3.onAdd = function (map1) {
+                this._div = L.DomUtil.create('div', 'info');
+                this.update();
+                return this._div;
+            };
+
+            info3.update = function (pct) {
+                this._div.innerHTML = '<h4>People of Color</h4>' + (pct ?
+                '<b>' + 'District ' + pct.id + '<b><br />' +
+                    'Af-Am: ' + pct.black + '%' + ' : Avg: ' + pct.avg_black + '%' + '<b><br />' +
+                        'Asian: ' + pct.asian + '%' + ' : Avg: ' + pct.avg_asian + '%' + '<b><br />' +
+                            'His/Lat: ' + pct.latin + '%' + ' : Avg: ' + pct.avg_latin + '%': 'Hover over a district');
+            };
+            //info3.addTo(map2);
+
+            function getColor(d) {
+                return d > 50 ? '#FED976' :
+                    d > 40 ? '#FEB24C' :
+                    d > 30 ? '#FD8D3C' :
+                    d > 20 ? '#FC4E2A' :
+                    d > 10 ? '#E31A1C' : '#BD0026';
+            }
+
+            function getVoterColor(a, b, c, d) {
+                var result;
+                var dDiff = b - a;
+                var rDiff = d - c;
+                if ((dDiff < 0 && rDiff < 0) || (dDiff > 0 && rDiff > 0)) {
+                    if (dDiff > rDiff) {
+                        result = Math.abs(dDiff) - Math.abs(rDiff);
+                    }
+                    else if (rDiff > dDiff) {
+                        result = Math.abs(rDiff) - Math.abs(dDiff);
+                    }
+                    else {
+                        result = 0;
+                    }
+                }
+                else {
+                    result = Math.abs(dDiff) + Math.abs(rDiff);
+                }
+                return result;
+            }
+
+            function assignVoterColor(d) {
+                return d > 20 ? '#54278F' :
+                    d > 15 ? '#756BB1' :
+                    d > 10 ? '#9E9AC8' :
+                    d > 5 ? '#CBC9E2' :
+                    d > 0 ? '#F2F0F7' : '#FFF';
+            }
+
+            function getRaceColor(b, a, l) {
+                return Math.max(b, a, l);
+            }
+
+            function assignRaceColor(r, b, a, l) {
+                if (r == b && b > 30) {
+                    return '#8DD3C7'; 
+                }
+                else if (r == a && a > 30) {
+                    return '#BEBADA';
+                }
+                else if (r == l && l > 30) {
+                    return '#FFFFB3';
+                }
+                else {
+                    return '#FFF';
+                }
+            }
+
+            function style(feature) {
+                return {
+                    weight: 2,
+                    opacity: 1,
+                    color: 'white',
+                    dashArray: '3',
+                    fillOpacity: 0.7,
+                    fillColor: getColor(feature.properties.roundness)
+                };
+            }
+
+            function voterStyle(feature) {
+                return {
+                    weight: 2,
+                    opacity: 1,
+                    color: 'white',
+                    dashArray: '3',
+                    fillOpacity: 0.7,
+                    fillColor: assignVoterColor(getVoterColor(feature.properties.dem, feature.properties.avg_dem, feature.properties.rep, feature.properties.avg_rep))
+                };
+            }
+
+            function raceStyle(feature) {
+                return {
+                    weight: 2,
+                    opacity: 1,
+                    color: 'white',
+                    dashArray: '3',
+                    fillOpacity: 0.7,
+                    fillColor: assignRaceColor(getRaceColor(feature.properties.black, feature.properties.asian, feature.properties.latin), feature.properties.black, feature.properties.asian, feature.properties.latin)
+                };
+            }
+
+            function highlightFeature(e) {
+                var layer = e.target;
+
+                layer.setStyle({
+                    weight: 5,
+                    color: '#666',
+                    dashArray: '',
+                    fillOpacity: 0.7
+                });
+
+                if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                    layer.bringToFront();
+                }
+                
+                //legend.addTo(map1);
+                info1.update(layer.feature.properties);    
+                //info2.update(layer.feature.properties); // this is going to need some tweaking because of both maps....
+            }
+
+            function highlightVoter(e) {
+                var layer = e.target;
+
+                layer.setStyle({
+                    weight: 5,
+                    color: '#666',
+                    dashArray: '',
+                    fillOpacity: 0.7
+                });
+
+                if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                    layer.bringToFront();
+                }
+
+                //legend2.addTo(map2);
+                info2.update(layer.feature.properties);
+            }
+
+            function highlightRace(e) {
+                var layer = e.target;
+
+                layer.setStyle({
+                    weight: 5,
+                    color: '#666',
+                    dashArray: '',
+                    fillOpacity: 0.7
+                });
+
+                if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                    layer.bringToFront();
+                }
+
+                info3.update(layer.feature.properties);
+            }
+
+            var geojson1;
+            var geojson2;
+            var geojson3;
+            var geojson4;
+            var geojson5;
+            var geojson6;
+
+            function resetHighlight(e) {
+                geojson1.resetStyle(e.target);
+                info1.update();
+                geojson2.resetStyle(e.target);
+                info1.update();
+            }
+
+            function resetVoter(e) {
+                geojson3.resetStyle(e.target);
+                info2.update();
+                geojson4.resetStyle(e.target);
+                info2.update();
+            }
+
+            function resetRace(e) {
+                geojson5.resetStyle(e.target);
+                info3.update();
+                geojson6.resetStyle(e.target);
+                info3.update();
+            }
+
+            function onEachFeature(feature, layer) {
+                layer.on({
+                    mouseover: highlightFeature,
+                    mouseout: resetHighlight
+                });
+            }
+
+            function voterFeature(feature, layer) {
+                layer.on({
+                    mouseover: highlightVoter,
+                    mouseout: resetVoter
+                });
+            }
+
+            function raceFeature(feature, layer) {
+                layer.on({
+                    mouseover: highlightRace,
+                    mouseout: resetRace
+                });
+            }
+
+            // geojson file test
+            geojson1 = L.geoJson(roeckSenNames, {
+                style: style,
+                onEachFeature: onEachFeature
+            }).addTo(map1);
+            map1.attributionControl.addAttribution('Data: <a href="http://www.nyirc.gov/maps">NYIRC</a>' + ', ' + '<a href="http://www.census.gov">ACS</a>' +
+            ', ' + '<a href="http://www.elections.ny.gov">NYSBOE</a>');
+
+            geojson2 = L.geoJson(roeckSenLetters, {
+                style: style,
+                onEachFeature: onEachFeature
+            }).addTo(map2);
+            //map2.attributionControl.addAttribution('Data: <a href="http://www.nyirc.gov/maps">NYIRC</a>');
+
+            geojson3 = L.geoJson(voterNames, {
+                style: voterStyle,
+                onEachFeature: voterFeature
+            });
+
+            geojson4 = L.geoJson(voterLetters, {
+                style: voterStyle,
+                onEachFeature: voterFeature
+            });
+
+            geojson5 = L.geoJson(raceNames, {
+                style: raceStyle,
+                onEachFeature: raceFeature
+            });
+
+            geojson6 = L.geoJson(raceLetters, {
+                style: raceStyle,
+                onEachFeature: raceFeature
+            });
+
+            // Legends: 
+            var roeckLegend = L.control({position: 'bottomright'});
+
+            roeckLegend.onAdd = function (map1) {
+                var div = L.DomUtil.create('div', 'info legend');
+                var grades = [0, 10, 20, 30, 40, 50];
+                var labels = [];
+                var from, to;
+
+                for (var i = 0; i < grades.length; i++) {
+                    from = grades[i];
+                    to = grades[i + 1];
+
+                    labels.push(
+                        '<i style="background:' + getColor(from + 1) + '"></i> ' + from + (to ? '&dash;' + to : '+')
+                    );
+                }
+
+                div.innerHTML = labels.join('<br>');
+                return div;
+            };
+            //legend.addTo(map1);  //ORIGINAL LEGEND PLACEMENT
+
+            var roeckLegend2 = L.control({position: 'bottomright'});
+
+            roeckLegend2.onAdd = function (map2) {
+                var div = L.DomUtil.create('div', 'info legend');
+                var grades = [0, 10, 20, 30, 40, 50];
+                var labels = [];
+                var from, to;
+
+                for (var i = 0; i < grades.length; i++) {
+                    from = grades[i];
+                    to = grades[i + 1];
+
+                    labels.push(
+                        '<i style="background:' + getColor(from + 1) + '"></i> ' + from + (to ? '&dash;' + to : '+')
+                    );
+                }
+
+                div.innerHTML = labels.join('<br>');
+                return div;
+            };
+
+            var voterLegend = L.control({position: 'bottomright'});
+
+            voterLegend.onAdd = function (map1) {
+                var div = L.DomUtil.create('div', 'info legend');
+                var grades = [0, 5, 10, 15, 20];
+                var labels = [];
+                var from, to;
+
+                for (var i = 0; i < grades.length; i++) {
+                    from = grades[i];
+                    to = grades[i + 1];
+
+                    labels.push(
+                        '<i style="background:' + assignVoterColor(from + 1) + '"></i> ' + from + (to ? '&dash;' + to : '+')
+                    );
+                }
+
+                div.innerHTML = labels.join('<br>');
+                return div;
+            };
+            //legend2.addTo(map2);
+
+            var voterLegend2 = L.control({position: 'bottomright'});
+
+            voterLegend2.onAdd = function (map2) {
+                var div = L.DomUtil.create('div', 'info legend');
+                var grades = [0, 5, 10, 15, 20];
+                var labels = [];
+                var from, to;
+
+                for (var i = 0; i < grades.length; i++) {
+                    from = grades[i];
+                    to = grades[i + 1];
+
+                    labels.push(
+                        '<i style="background:' + assignVoterColor(from + 1) + '"></i> ' + from + (to ? '&dash;' + to : '+')
+                    );
+                }
+
+                div.innerHTML = labels.join('<br>');
+                return div;
+            };
+
+            var raceLegend = L.control({position: 'bottomright'});
+
+            raceLegend.onAdd = function (map1) {
+                var div = L.DomUtil.create('div', 'info legend');
+                var labels = [];
+                labels.push(
+                    '<i style="background:' + '#8DD3C7' + '"></i> ' + "Afr. Am"
+                );
+                labels.push(
+                    '<i style="background:' + '#BEBADA' + '"></i> ' + "Asian"
+                );
+                labels.push(
+                    '<i style="background:' + '#FFFFB3' + '"></i> ' + "His/Lat"
+                );
+                div.innerHTML = labels.join('<br>');
+                return div;
+            };
+            // legend3.addTo(map2);
+
+            var raceLegend2 = L.control({position: 'bottomright'});
+
+            raceLegend2.onAdd = function (map2) {
+                var div = L.DomUtil.create('div', 'info legend');
+                var labels = [];
+                labels.push(
+                    '<i style="background:' + '#8DD3C7' + '"></i> ' + "Afr. Am"
+                );
+                labels.push(
+                    '<i style="background:' + '#BEBADA' + '"></i> ' + "Asian"
+                );
+                labels.push(
+                    '<i style="background:' + '#FFFFB3' + '"></i> ' + "His/Lat"
+                );
+                div.innerHTML = labels.join('<br>');
+                return div;
+            };
+
+            var overlays_top = {
+                "Roeck": geojson1,
+                "Voters": geojson3,
+                "Races": geojson5
+            };
+
+            var overlays_bottom = {
+                "Roeck": geojson2,
+                "Voters": geojson4,
+                "Races": geojson6
+            };
+
+            var layerControl_top = L.control.layers(overlays_top).addTo(map1);
+            var layerControl_bottom = L.control.layers(overlays_bottom).addTo(map2);
+
+            roeckLegend.addTo(map1);
+            info1.addTo(map1);
+            var currentLegend = roeckLegend;
+            var currentInfo = info1;
+
+            roeckLegend2.addTo(map2);
+            //info1.addTo(map2);
+            var currentLegend2 = roeckLegend2;
+            //var currentInfo2 = info11;
+
+            map1.on('baselayerchange', function (eventLayer) {
+                if (eventLayer.name === 'Roeck') {
+                    map1.removeControl(currentLegend);
+                    map1.removeControl(currentInfo);
+                    currentLegend = roeckLegend;
+                    currentInfo = info1;
+                    roeckLegend.addTo(map1);
+                    info1.addTo(map1);
+                }
+                else if (eventLayer.name === 'Voters') {
+                    map1.removeControl(currentLegend);
+                    map1.removeControl(currentInfo);
+                    currentLegend = voterLegend;
+                    currentInfo = info2;
+                    voterLegend.addTo(map1);
+                    info2.addTo(map1);
+                }
+                else if (eventLayer.name === 'Races') {
+                    map1.removeControl(currentLegend);
+                    map1.removeControl(currentInfo);
+                    currentLegend = raceLegend;
+                    currentInfo = info3;
+                    raceLegend.addTo(map1);
+                    info3.addTo(map1);
+                }
+            });
+
+            map2.on('baselayerchange', function (eventLayer) {
+                if (eventLayer.name === 'Roeck') {
+                    map2.removeControl(currentLegend2);
+                    map1.removeControl(currentInfo);
+                    currentLegend2 = roeckLegend2;
+                    currentInfo = info1;
+                    roeckLegend2.addTo(map2);
+                    info1.addTo(map1);
+                }
+                else if (eventLayer.name === 'Voters') {
+                    map2.removeControl(currentLegend2);
+                    map1.removeControl(currentInfo);
+                    currentLegend2 = voterLegend2;
+                    currentInfo = info2;
+                    voterLegend2.addTo(map2);
+                    info2.addTo(map1);
+                }
+                else if (eventLayer.name === 'Races') {
+                    map2.removeControl(currentLegend2);
+                    map1.removeControl(currentInfo);
+                    currentLegend2 = raceLegend2;
+                    currentInfo = info3;
+                    raceLegend2.addTo(map2);
+                    info3.addTo(map1);
+                }
+            });
+
+            // Textbox title: Names
+
+            L.Control.textbox = L.Control.extend({
+		        onAdd: function(map1) {
+			
+		        var text = L.DomUtil.create('div', 'h1');
+		        text.innerHTML = "<h1>Names Plan</h1>"
+		        return text;
+		        },
+
+		        onRemove: function(map) {
+			// Nothing to do here
+		        }
+	        });
+	        L.control.textbox = function(opts) { return new L.Control.textbox(opts);}
+	        L.control.textbox({ position: 'bottomleft' }).addTo(map1);
+
+            // Textbox title: Letters
+            L.Control.textbox = L.Control.extend({
+		        onAdd: function(map2) {
+			
+		        var text = L.DomUtil.create('div', 'h1');
+		        text.innerHTML = "<h1>Letters Plan</h1>"
+		        return text;
+		        },
+
+		        onRemove: function(map) {
+			// Nothing to do here
+		        }
+	        });
+	        L.control.textbox = function(opts) { return new L.Control.textbox(opts);}
+	        L.control.textbox({ position: 'bottomleft' }).addTo(map2);
+
+            // overlays
+
+            
+
+
+
+        </script>
+    </body>
+</html>
